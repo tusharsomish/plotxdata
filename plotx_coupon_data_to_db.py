@@ -122,7 +122,15 @@ def rename_staging_table():
     c.close()
     conn.close()
     return True
-    
+
+def drop_staging_table():
+    conn = db_conn()
+    c = conn.cursor()
+    c.execute("DROP TABLE IF EXISTS coupon_detail_new")  
+    conn.commit()
+    c.close()
+    conn.close()
+    return True    
     
 file = open(r"C:\Somish\plotx\bplot dump\vouchercode_21DEC.json", 'r')
 data = file.read()
@@ -146,3 +154,6 @@ if getNewSize()>getCurrentSize():
     print("Audit Success")
     drop_existing_table()
     rename_staging_table()
+else:
+    drop_staging_table()
+    
