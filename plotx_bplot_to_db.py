@@ -118,6 +118,15 @@ def rename_staging_table():
     conn.close()
     return True
 
+def drop_staging_table():
+    conn = db_conn()
+    c = conn.cursor()
+    c.execute("DROP TABLE IF EXISTS user_claimed_for_airdrop_app_new")  
+    conn.commit()
+    c.close()
+    conn.close()
+    return True
+
 text = open(r"C:\Somish\plotx\bplot dump\user_claimed_for_airdrop_app_21DEC.csv", 'r')
 data = text.readlines()
 text.close()
@@ -153,4 +162,5 @@ if sizeNewTable()>sizeCurrentTable():
     print("Audit Success")
     drop_existing_table()
     rename_staging_table()
-
+else:
+    drop_staging_table()
