@@ -18,7 +18,7 @@ import psycopg2.extras
 pd.options.mode.chained_assignment = None
 
 def db_conn():
-    t_host = "15.207.18.6"
+    t_host = "13.127.216.173"
     t_port = "5432"
     t_dbname = "plotx"
     t_user = "ubuntu"

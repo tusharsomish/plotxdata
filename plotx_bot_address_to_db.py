@@ -11,7 +11,7 @@ import psycopg2
 import psycopg2.extras
 
 def db_conn():
-    t_host = "15.207.18.6"
+    t_host = "13.127.216.173"
     t_port = "5432"
     t_dbname = "plotx"
     t_user = "ubuntu"
@@ -56,9 +56,9 @@ def insert_to_db(df, table):
         conn.close()
         
 
-file = open(r"C:\Somish\plotx\addresses_predictionBot_v3.json", 'r')
-file.close()
+file = open(r"C:\Somish\plotx\addresses_predictionBot_v4.json", 'r')
 data = file.read()
+file.close()
 l = json.loads(data)
 df = pd.DataFrame(l, columns=['bot_address'])
 insert_to_db(df, 'bot_address')

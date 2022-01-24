@@ -12,7 +12,7 @@ import psycopg2
 import psycopg2.extras
 
 def db_conn():
-    t_host = "15.207.18.6"
+    t_host = "13.127.216.173"
     t_port = "5432"
     t_dbname = "plotx"
     t_user = "ubuntu"
@@ -127,7 +127,7 @@ def drop_staging_table():
     conn.close()
     return True
 
-text = open(r"C:\Somish\plotx\bplot dump\user_claimed_for_airdrop_app_21DEC.csv", 'r')
+text = open(r"C:\Somish\plotx\bplot dump\user_claimed_for_airdrop_app_JAN_17.csv", 'r')
 data = text.readlines()
 text.close()
 data = [i.replace('{"_id":', '') for i in data]

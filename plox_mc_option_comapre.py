@@ -14,7 +14,7 @@ import math
 import scipy.stats
 
 def db_conn():
-    t_host = "15.207.18.6"
+    t_host = "13.127.216.173"
     t_port = "5432"
     t_dbname = "plotx"
     t_user = "ubuntu"
@@ -303,6 +303,31 @@ def get_stats(df):
     hourly_v = std_dev*ltp
     return mean, std_dev, hourly_v
 
+def stats_1_hours(start_date):
+    start = start_date - datetime.timedelta(hours=100)
+    start = start.replace(tzinfo=None)
+    start = int((start - datetime.datetime(1970, 1, 1)).total_seconds()*1000)
+    
+    end = datetime.datetime.utcnow()
+    end = end.replace(tzinfo=None)
+    end = int((end - datetime.datetime(1970, 1, 1)).total_seconds()*1000)
+    
+    stats=dict()
+    for symbol in ['BTCUSDT', 'ETHUSDT']:
+        stats[symbol] = dict()
+        
+        ohlc = get_ohlc(symbol, start, end, '1h')
+        ohlc['datetime'] = ohlc['datetime'].apply(pd.to_datetime)
+    
+        i=0
+        while i<len(ohlc):
+            df = ohlc.iloc[i:i+100]
+            date_key = df['datetime'].iloc[-1]
+            mean, std_dev, hourly_v = get_stats(df)
+            stats[symbol].update({date_key:{'mean':mean, 'std_dev':std_dev, 'hourly_v':hourly_v}})
+            i+=1
+    return stats
+
 def stats_8_hours(start_date):
     start = start_date - datetime.timedelta(hours=100)
     start = start.replace(tzinfo=None)
@@ -441,7 +466,8 @@ def vop_tsm():
         df = market_df[market_df['marketIndex']==mid]
         
         #TODO: Remove Bot
-        #df = df[df['bot']!='Bot']
+        if remove_bot:
+            df = df[df['bot']!='Bot']
         
         df['assetType_x'] = df['assetType_x'].bfill(axis=0).ffill(axis=0)
         df['type'] = df['type'].fillna('Shorter')
@@ -498,8 +524,10 @@ def vop_tsm():
         df['vop'] = df.apply(lambda x : 1-x['vop'] if (x['itm']!=x['optionNumber']) else x['vop'],axis=1)
         
         #TODO: Add 2 cents
-        #df['vop']  = df['vop']+0.02
-        
+        if add_2_cent:
+            df['vop']  = df['vop']+0.02
+            df['vop'] = df['vop'].apply(lambda x : x if x<1 else 0.98)
+            
         df['vop'] = df.apply(lambda x : 0.5 if x['bot']=='MC' else x['vop'], axis=1)
         
         df['fees'] = df.apply(lambda x : 0 if x['bot']=='MC' else x['participationValue']*0.02, axis=1)
@@ -538,8 +566,8 @@ def vop_tsm_1():
         
         df = market_df[market_df['marketIndex']==mid]
         
-        #TODO: Remove Bot
-        #df = df[df['bot']!='Bot']
+        if remove_bot:
+            df = df[df['bot']!='Bot']
         
         df['assetType_x'] = df['assetType_x'].bfill(axis=0).ffill(axis=0)
         df['type'] = df['type'].fillna('Shorter')
@@ -592,8 +620,13 @@ def vop_tsm_1():
         # df['vop'] = 1 - df['vop']
         df['vop'] = df.apply(lambda x : 1-x['vop'] if x['itm']==1 else x['vop'],axis=1)
         df['vop'] = df.apply(lambda x : 1-x['vop'] if (x['itm']!=x['optionNumber']) else x['vop'],axis=1)
+        
+        #TODO: Add 2 cents
+        if add_2_cent:
+            df['vop']  = df['vop']+0.02
+            df['vop'] = df['vop'].apply(lambda x : x if x<1 else 0.98)
+            
         df['vop'] = df.apply(lambda x : 0.5 if x['bot']=='MC' else x['vop'], axis=1)
-
         
         df['fees'] = df.apply(lambda x : 0 if x['bot']=='MC' else x['participationValue']*0.02, axis=1)
         df['mc_share_of_fees'] = df['fees']*0.4
@@ -633,7 +666,8 @@ def voppr4():
         df = market_df[market_df['marketIndex']==mid]
         
         #TODO: Remove Bot
-        #df = df[df['bot']!='Bot']
+        if remove_bot:
+            df = df[df['bot']!='Bot']
         
         df['assetType_x'] = df['assetType_x'].bfill(axis=0).ffill(axis=0)
         df['type'] = df['type'].fillna('Shorter')
@@ -658,8 +692,10 @@ def voppr4():
         df['vop'] = df['actualParticipationValue']/df['new_pos']
         
         #TODO: Add 2 cents
-        # df['vop']  = df['vop']+0.02
-        
+        if add_2_cent:
+            df['vop']  = df['vop']+0.02
+            df['vop'] = df['vop'].apply(lambda x : x if x<1 else 0.98)
+            
         df['vop'] = df.apply(lambda x : 0.5 if x['bot']=='MC' else x['vop'], axis=1)
         
         df['mc_share_of_fees'] = df['fees']*0.4
@@ -667,7 +703,7 @@ def voppr4():
         # df['actualParticipationValue'] = df['participationValue']-df['fees']
         df['contributionPool'] = df.apply(lambda x : x['actualParticipationValue'] if x['returnInPlot']==0 else 0, axis=1)
         
-        # df['new_pos'] = df['actualParticipationValue']/df['vop']
+        df['new_pos'] = df['actualParticipationValue']/df['vop']
         df['new_pos'] = df.apply(lambda x : (x['participationValue']/0.5)*mc_multiplier if x['bot']=='MC' else x['new_pos'], axis=1)
        
         total_position = df['new_pos'][df['returnInPlot']>0].sum()
@@ -698,7 +734,8 @@ def hybrid():
         df = market_df[market_df['marketIndex']==mid]
         
         #TODO: Remove Bot
-        #df = df[df['bot']!='Bot']
+        if remove_bot:
+            df = df[df['bot']!='Bot']
         
         df['assetType_x'] = df['assetType_x'].bfill(axis=0).ffill(axis=0)
         df['type'] = df['type'].fillna('Shorter')
@@ -768,8 +805,10 @@ def hybrid():
         df['vop'] = df.apply(lambda x: min(x['vop_tsm'], x['vop_pr4']) if x['vop_tsm']<0.5 else x['vop'], axis=1)
         
         #TODO: Add 2 ccents
-        # df['vop'] = df['vop'] + 0.02
-        
+        if add_2_cent:
+            df['vop'] = df['vop'] + 0.02
+            df['vop'] = df['vop'].apply(lambda x : x if x<1 else 0.98)
+            
         df['vop'] = df.apply(lambda x : 0.5 if x['bot']=='MC' else x['vop'], axis=1)
 
         # df['fees'] = df.apply(lambda x : 0 if x['bot']=='MC' else x['participationValue']*0.02, axis=1)
@@ -807,6 +846,8 @@ if __name__ == '__main__':
     
     mc_address = '0x6b8f9c3f66842a82b80d2a24daf53d6df311d59c'
     mc_multiplier = 1.1
+    remove_bot=False
+    add_2_cent=True
         
     strike_price = pd.read_csv(r"C:\Somish\plotx\strike_price_from_9Nov.csv")
     strike_price['strike'] = strike_price['neutralBaseValue']/100000000
@@ -816,7 +857,7 @@ if __name__ == '__main__':
     phi = pd.read_excel(r"C:\Somish\plotx\Anshul_PlotX3 LP3V1.xlsx", sheet_name='Phi Values', names=['vop','move_sd'])
     
     stats_start = datetime.datetime(year=2021, month=11, day=4)
-    stats = stats_24_hours(stats_start)
+    stats = stats_8_hours(stats_start)
     
     ohlc=pd.DataFrame()
     close_start = stats_start.replace(tzinfo=None)
@@ -836,7 +877,7 @@ if __name__ == '__main__':
     market_df['bot'] = market_df.apply(lambda x : 'MC' if x['playerAddress']==mc_address else x['bot'], axis=1)
     market_df['bot'] = market_df.apply(lambda x : 'Player' if x['bot']=='' else x['bot'], axis=1)
     market_df = pd.merge(market_df, strike_price[['marketIndex', 'startTime', 'settleTime', 'assetType']], on='marketIndex', how='left')
-    
+     
     output_dir = "C:\Somish\plotx\simulation1"
     
     d, df = get_current_df()

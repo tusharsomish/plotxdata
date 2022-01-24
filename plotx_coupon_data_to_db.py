@@ -11,7 +11,7 @@ import psycopg2
 import psycopg2.extras
 
 def db_conn():
-    t_host = "15.207.18.6"
+    t_host = "13.127.216.173"
     t_port = "5432"
     t_dbname = "plotx"
     t_user = "ubuntu"
@@ -132,7 +132,7 @@ def drop_staging_table():
     conn.close()
     return True    
     
-file = open(r"C:\Somish\plotx\bplot dump\vouchercode_21DEC.json", 'r')
+file = open(r"C:\Somish\plotx\bplot dump\voucherData.csv", 'r')
 data = file.read()
 file.close()
 data = data.replace("ObjectId(", "")
@@ -143,9 +143,15 @@ data1 = [e+"}" for e in data.split("}\n") if e]
 data1[-1] = data1[-1].replace("}}","}")
 data = [json.loads(i) for i in data1]
 
-
 df = pd.DataFrame(data)
 df.columns = [i.replace("_","").lower() for i in df.columns]
+
+#Drop unclaimed coupons
+df = df[~df['claimedby'].isna()]
+
+df['id'] = df['id'].apply(lambda x : list(x.values())[0])
+df['claimedtimestamp'] = df['claimedtimestamp'].apply(lambda x : list(x.values())[0])
+df['bplotsexpiry'] = df['bplotsexpiry'].apply(lambda x : list(x.values())[0])
 
 createStagingTable()
 insert_to_db(df)

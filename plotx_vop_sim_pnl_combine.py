@@ -37,7 +37,7 @@ df7.columns=['marketIndex', 'pnl_vophybrid']
 
 df = pd.concat([df1, df2, df3, df4, df5, df6, df7], join='inner', axis=1)
 df = df.loc[:,~df.columns.duplicated()]
-df.to_csv(r"{}\pnl_combinedbothybrid_{}.csv".format(output_dir,mc_multiplier), index=False)
+df.to_csv(r"{}\pnl_combined2cent_{}.csv".format(output_dir,mc_multiplier), index=False)
 # df1 = df[df['marketIndex']==54635]
 
 
@@ -59,5 +59,5 @@ df4.columns=['marketIndex', 'playerAddress', 'participationValue', 'optionNumber
 
 df = pd.concat([df1, df2, df3, df4], join='inner', axis=1)  
 df = df.loc[:,~df.columns.duplicated()]
-df.to_csv(r"{}\raw_combinedmarketbothybrid_{}.csv".format(output_dir,mc_multiplier), index=False)
+df.to_csv(r"{}\raw_combined2cent_{}.csv".format(output_dir,mc_multiplier), index=False)
 
