@@ -836,7 +836,106 @@ def hybrid():
         total_df = total_df.append(df, ignore_index=True)
     return total_d, total_df
 
+def incremental_mc():
+    total_d = dict()
+    total_df = pd.DataFrame()
+    for idx, mid in enumerate(list(dict.fromkeys(market_df['marketIndex']))):
+        print(f'{idx} -> {mid}')
+        # mid=54981
+        strike = get_strike(mid)
+        
+        df = market_df[market_df['marketIndex']==mid]
+        
+        #TODO: Remove Bot
+        if remove_bot:
+            df = df[df['bot']!='Bot']
+        
+        df['assetType_x'] = df['assetType_x'].bfill(axis=0).ffill(axis=0)
+        df['type'] = df['type'].fillna('Shorter')
+        
+        symbol = df['assetType_y'].iloc[0].replace('/','')+'T'
+        df['symbol']=symbol
+        
+        df = df.sort_values('timestamp')
+        df['datetime'] = df['transactionTime'].map(lambda x: x.replace(second=0, tzinfo=None))
+        df['participationValue'] = df['participationValue']/100000000
+        df['returnInPlot'] = df['returnInPlot']/100000000
+        
+        df = pd.merge(df, ohlc[['symbol', 'datetime', 'close']], on=['symbol','datetime'], how='left')
+        
+        market_creation_date = df['createdAt'].iloc[0].replace(tzinfo=None)
+        
+        dates=list(stats[symbol].keys())
+        for idx, v in enumerate(dates):
+            try:
+                if dates[idx] < market_creation_date and dates[idx+1]>market_creation_date:
+                    mean = stats[symbol][v]['mean']
+                    std_dev = stats[symbol][v]['std_dev']
+                    hourly_v = stats[symbol][v]['hourly_v']
+                    break
+            except IndexError:
+                mean = stats[symbol][v]['mean']
+                std_dev = stats[symbol][v]['std_dev']
+                hourly_v = stats[symbol][v]['hourly_v']
+        
+        # mean, std_dev, hourly_v = market_stats(market_creation_date, symbol)
+        
+        df['strike_price'] = strike
+        df['v'] = hourly_v
+        df['std_dev'] = std_dev
+        df['mean'] = mean
+        
+        df['diff'] =  df['close']-strike
+        df['t'] = (df['settleTime'] - df['timestamp'])/60
+        df['timefactor'] = (df['t']/60).apply(math.sqrt)
+        df['v_est'] = hourly_v*df['timefactor']
+        df['move_sd'] = df['diff']/df['v_est']
+        
+        df['itm'] = df['diff'].apply(lambda x : 1 if x<0 else 2)
+       
+        # df['vop'] = df.apply(lambda y : scipy.stats.norm.cdf(x=y['strike_price'], loc=y['close'], scale=y['v_est']), axis=1)
+        # df['vop'] = df.apply(lambda x : x['vop'] if x['itm']==1 else 1-x['vop'], axis=1)
+        # df['vop'] = df.apply(lambda x : x['vop'] if x['optionNumber']==1 else 1-x['vop'], axis=1)
 
+        df = pd.merge_asof(df.sort_values('move_sd'), phi, on='move_sd', direction='nearest')
+        df = df.sort_values('timestamp')
+        
+        # df['vop'] = 1 - df['vop']
+        df['vop'] = df.apply(lambda x : 1-x['vop'] if x['itm']==1 else x['vop'],axis=1)
+        df['vop'] = df.apply(lambda x : 1-x['vop'] if (x['itm']!=x['optionNumber']) else x['vop'],axis=1)
+        
+        #TODO: Add 2 cents
+        if add_2_cent:
+            df['vop']  = df['vop']+0.02
+            df['vop'] = df['vop'].apply(lambda x : x if x<1 else 0.98)
+            
+        df['vop'] = df.apply(lambda x : 0.5 if x['bot']=='MC' else x['vop'], axis=1)
+        
+        df['fees'] = df.apply(lambda x : 0 if x['bot']=='MC' else x['participationValue']*0.02, axis=1)
+        df['mc_share_of_fees'] = df['fees']*0.4
+
+        df['actualParticipationValue'] = df['participationValue']-df['fees']
+        df['contributionPool'] = df.apply(lambda x : x['actualParticipationValue'] if x['returnInPlot']==0 else 0, axis=1)
+        
+        df['new_pos'] = df['actualParticipationValue']/df['vop']
+        df['new_pos'] = df.apply(lambda x : (x['participationValue']/0.5)*mc_multiplier if x['bot']=='MC' else x['new_pos'], axis=1)
+       
+        total_position = df['new_pos'][df['returnInPlot']>0].sum()
+        total_contribution = df['contributionPool'].sum()
+        mc_share_from_contribution_pool = total_contribution*0.05
+        actual_contribution = total_contribution - mc_share_from_contribution_pool
+        mc_share_of_fees = df['mc_share_of_fees'].sum()
+        
+        df['reward'] = df.apply(lambda x : (x['actualParticipationValue']+(x['new_pos']/total_position)*actual_contribution) if x['returnInPlot']>0 else 0, axis=1)
+        
+        in_pnl = df['participationValue'][df['bot'].isin(['Bot', 'MC'])].sum()
+        bot_mc_return = df['reward'][df['bot'].isin(['Bot', 'MC'])].sum()
+        out_pnl = mc_share_from_contribution_pool + mc_share_of_fees + bot_mc_return
+        pnl = out_pnl - in_pnl
+        
+        total_d[mid] = pnl
+        total_df = total_df.append(df, ignore_index=True)
+    return total_d, total_df
         
 if __name__ == '__main__':
     

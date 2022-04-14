@@ -127,7 +127,7 @@ def drop_staging_table():
     conn.close()
     return True
 
-text = open(r"C:\Somish\plotx\bplot dump\user_claimed_for_airdrop_app_JAN_17.csv", 'r')
+text = open(r"C:\Somish\plotx\bplot dump\user_claimed_for_airdrop_app.csv", 'r')
 data = text.readlines()
 text.close()
 data = [i.replace('{"_id":', '') for i in data]

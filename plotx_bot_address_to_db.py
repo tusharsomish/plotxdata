@@ -40,7 +40,7 @@ def insert_to_db(df, table):
             values = "VALUES({})".format(",".join(["%s" for _ in df_columns])) 
         
             #create INSERT INTO table (columns) VALUES('%s',...)
-            insert_stmt = """INSERT INTO {} ({}) {}""".format(table,columns,values)
+            insert_stmt = """INSERT INTO {} ({}) {} ON CONFLICT(bot_address) DO NOTHING""".format(table,columns,values)
         
             psycopg2.extras.execute_batch(c, insert_stmt, df.values)
             conn.commit()
@@ -54,9 +54,28 @@ def insert_to_db(df, table):
     finally:
         c.close() 
         conn.close()
-        
 
-file = open(r"C:\Somish\plotx\addresses_predictionBot_v4.json", 'r')
+def get_all_bot_address():
+    conn = db_conn()
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM bot_address")
+    
+    result = c.fetchall()
+    
+    df = pd.DataFrame(result, columns=['bot_address'])
+    
+    df1 = df.drop_duplicates()
+    
+    conn.close()
+    c.close()
+    
+    return df1
+
+        
+# df = get_all_bot_address()
+
+file = open(r"C:\Somish\plotx\bplot dump\bot_address\addresses_predictionBot_v6_2.json", 'r')
 data = file.read()
 file.close()
 l = json.loads(data)

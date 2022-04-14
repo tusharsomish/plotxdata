@@ -132,7 +132,7 @@ def drop_staging_table():
     conn.close()
     return True    
     
-file = open(r"C:\Somish\plotx\bplot dump\voucherData.csv", 'r')
+file = open(r"C:\Somish\plotx\bplot dump\voucher_data.csv", 'r')
 data = file.read()
 file.close()
 data = data.replace("ObjectId(", "")
@@ -151,7 +151,7 @@ df = df[~df['claimedby'].isna()]
 
 df['id'] = df['id'].apply(lambda x : list(x.values())[0])
 df['claimedtimestamp'] = df['claimedtimestamp'].apply(lambda x : list(x.values())[0])
-df['bplotsexpiry'] = df['bplotsexpiry'].apply(lambda x : list(x.values())[0])
+# df['bplotsexpiry'] = df['bplotsexpiry'].apply(lambda x : list(x.values())[0])
 
 createStagingTable()
 insert_to_db(df)

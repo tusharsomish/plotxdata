@@ -8,9 +8,11 @@ Created on Mon Dec 13 19:34:09 2021
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
+import numpy as np
 import requests
 from requests.auth import HTTPBasicAuth
 import datetime
+import time
 import json
 import psycopg2
 import psycopg2.extras
@@ -18,7 +20,7 @@ import psycopg2.extras
 pd.options.mode.chained_assignment = None
 
 def db_conn():
-    t_host = "13.127.216.173"
+    t_host = "15.206.148.131" # KEEP ME UPDATED
     t_port = "5432"
     t_dbname = "plotx"
     t_user = "ubuntu"
@@ -30,14 +32,17 @@ def latest_date():
     conn = db_conn()
     c = conn.cursor()
 
-    c.execute("""select max(start_Timestamp) from 
-              (select (TIMESTAMP WITH Time Zone 'epoch' + time * INTERVAL '1 second') start_Timestamp 
-               from mixpanel_raw_data) A """)    
+    c.execute("""select max(time)
+              from mixpanel_raw_data""")    
     result = c.fetchall()
     result = result[0][0]
+    
+    time_str = datetime.datetime.utcfromtimestamp(result) + datetime.timedelta(days=1)
+    time_str = time_str.strftime('%Y-%m-%d')
+    
     c.close()
     conn.close()
-    return result
+    return time_str
 
 def existing_colnames():
     conn = db_conn()
@@ -97,19 +102,21 @@ def add_new_cols(old_names, new_names):
         if colname not in old_names:
             print(f"Adding new column: {colname} to mixpanel_raw_data")
             if 'int' in datatype or 'float' in datatype:
-                c.execute(f"ALTER TABLE mixpanel_raw_data ADD COLUMN {colname} real ")
+                print(f'{colname} real')
+                # c.execute(f"ALTER TABLE mixpanel_raw_data ADD COLUMN {colname} real ")
             else:
-                c.execute(f"ALTER TABLE mixpanel_raw_data ADD COLUMN {colname} VARCHAR ")
+                print(f'{colname} char')
+                # c.execute(f"ALTER TABLE mixpanel_raw_data ADD COLUMN {colname} VARCHAR ")
     conn.commit()
     c.close()
     conn.close()
     return
     
 def get_mixpanel_data():
-    start_date = latest_date() + datetime.timedelta(days=1)
-    start_date = start_date.strftime("%Y-%m-%d")
+    start_date = latest_date() 
+    
     end_date = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    # end_date = '2021-12-14'    
+    # end_date = '2022-04-09'  #UPDATE ME  
     
     print(f"Fetching data from Mixpanel from {start_date} to {end_date}")
     
@@ -133,8 +140,7 @@ def get_mixpanel_data():
 
 if __name__ == '__main__':
     
-    df = get_mixpanel_data()
-    
+    df = get_mixpanel_data()    
     
     new_colnames = df.dtypes.astype(str).reset_index()
     new_colnames.columns=['colname','dtype']
@@ -172,9 +178,18 @@ if __name__ == '__main__':
     new_colnames['colname'] = new_colnames['colname'].str.replace("$","").str.replace(" ","_").str.lower()
     df.columns = new_colnames['colname'].to_list()
     
-    add_new_cols(old_colnames, new_colnames)
+    add_new_cols(old_colnames, new_colnames) # CHECK ME
     
+    df['coupon_redeem_date'] = df['coupon_redeem_date'].astype(str)
+    df['coupon_redeem_date'] = df['coupon_redeem_date'].replace("{}", np.nan)
     df = df.astype(object)
     df = df.where(pd.notnull(df), None)
 
     insert_to_db(df, 'mixpanel_raw_data')
+ 
+    
+ 
+# df1 = df.copy()
+# df1 = df[~df['coupon_redeem_status'].isna()]
+# df1['coupon_redeem_date'] = df['coupon_redeem_date'].astype(str)
+# df1['coupon_redeem_date'] = df1['coupon_redeem_date'].str.replace("{}",'None')
